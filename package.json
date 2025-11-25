@@ -2,9 +2,13 @@
   "name": "fidel-challenge",
   "version": "1.0.0",
   "description": "Serverless Offers API built with NestJS, AWS Lambda, and DynamoDB",
-  "main": "index.js",
+  "main": "dist/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main"
   },
   "repository": {
     "type": "git",
@@ -15,5 +19,20 @@
   "bugs": {
     "url": "https://github.com/bentovsky/fidel-challenge/issues"
   },
-  "homepage": "https://github.com/bentovsky/fidel-challenge#readme"
+  "homepage": "https://github.com/bentovsky/fidel-challenge#readme",
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.12",
+    "@nestjs/schematics": "^11.0.9",
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.9",
+    "@nestjs/core": "^11.1.9",
+    "@nestjs/platform-express": "^11.1.9",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  }
 }
