@@ -1,0 +1,19 @@
+{
+  "name": "fidel-challenge",
+  "version": "1.0.0",
+  "description": "Serverless Offers API built with NestJS, AWS Lambda, and DynamoDB",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bentovsky/fidel-challenge.git"
+  },
+  "author": "joao bento",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/bentovsky/fidel-challenge/issues"
+  },
+  "homepage": "https://github.com/bentovsky/fidel-challenge#readme"
+}
