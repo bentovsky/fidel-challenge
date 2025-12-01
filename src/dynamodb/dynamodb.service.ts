@@ -6,12 +6,14 @@ import {
   GetCommand,
   PutCommand,
   QueryCommand,
+  ScanCommand,
   UpdateCommand,
   DeleteCommand,
   TransactWriteCommand,
   GetCommandInput,
   PutCommandInput,
   QueryCommandInput,
+  ScanCommandInput,
   UpdateCommandInput,
   DeleteCommandInput,
   TransactWriteCommandInput,
@@ -109,6 +111,18 @@ export class DynamoDBService implements OnModuleInit {
   ) {
     return this.client.send(
       new DeleteCommand({
+        TableName: tableName,
+        ...params,
+      })
+    );
+  }
+
+  async scan(
+    tableName: TableName,
+    params?: Omit<ScanCommandInput, "TableName">
+  ) {
+    return this.client.send(
+      new ScanCommand({
         TableName: tableName,
         ...params,
       })
