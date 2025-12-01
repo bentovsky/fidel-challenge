@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DynamoDBModule } from './dynamodb/dynamodb.module';
+import { BrandsModule } from './brands/brands.module';
 
 @Module({
   imports: [
@@ -8,6 +9,7 @@ import { DynamoDBModule } from './dynamodb/dynamodb.module';
       isGlobal: true,
     }),
     DynamoDBModule,
+    BrandsModule,
   ],
   controllers: [],
   providers: [],
