@@ -1,0 +1,76 @@
+import {
+  DynamoDBClient,
+  CreateTableCommand,
+  CreateTableCommandInput,
+  DeleteTableCommand,
+  ListTablesCommand,
+  KeyType,
+  ScalarAttributeType,
+  BillingMode,
+  ProjectionType,
+} from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient({
+  region: "local",
+  endpoint: "http://localhost:8000",
+});
+
+const tables: CreateTableCommandInput[] = [
+  {
+    TableName: "brands",
+    KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
+    AttributeDefinitions: [
+      { AttributeName: "id", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "name", AttributeType: ScalarAttributeType.S },
+    ],
+    GlobalSecondaryIndexes: [
+      {
+        IndexName: "name-index",
+        KeySchema: [{ AttributeName: "name", KeyType: KeyType.HASH }],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
+    ],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+  {
+    TableName: "offers",
+    KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
+    AttributeDefinitions: [{ AttributeName: "id", AttributeType: ScalarAttributeType.S }],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+  {
+    TableName: "locations",
+    KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
+    AttributeDefinitions: [{ AttributeName: "id", AttributeType: ScalarAttributeType.S }],
+    BillingMode: BillingMode.PAY_PER_REQUEST,
+  },
+];
+
+const forceRecreate = process.argv.includes("--force");
+
+async function createTables() {
+  const { TableNames: existingTables } = await client.send(
+    new ListTablesCommand({})
+  );
+
+  for (const table of tables) {
+    const tableName = table.TableName!;
+
+    if (existingTables?.includes(tableName)) {
+      if (forceRecreate) {
+        await client.send(new DeleteTableCommand({ TableName: tableName }));
+        console.log(`Deleted table "${tableName}"`);
+      } else {
+        console.log(`Table "${tableName}" already exists, skipping... (use --force to recreate)`);
+        continue;
+      }
+    }
+
+    await client.send(new CreateTableCommand(table));
+    console.log(`Created table "${tableName}"`);
+  }
+
+  console.log("Done!");
+}
+
+createTables().catch(console.error);
