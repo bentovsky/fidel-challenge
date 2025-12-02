@@ -82,20 +82,20 @@ This is a serverless Offers API platform built with NestJS, AWS Lambda, and Dyna
 
 ### Locations
 
-| Method | Endpoint         | Description                                           |
-| ------ | ---------------- | ----------------------------------------------------- |
-| GET    | `/locations`     | List all locations (paginated, filterable by brandId) |
-| GET    | `/locations/:id` | Get a location by ID                                  |
-| POST   | `/locations`     | Create a new location                                 |
-| PUT    | `/locations/:id` | Update a location                                     |
-| DELETE | `/locations/:id` | Delete a location                                     |
+| Method | Endpoint         | Description                                        |
+| ------ | ---------------- | -------------------------------------------------- |
+| GET    | `/locations`     | List locations (paginated, **brandId required**)   |
+| GET    | `/locations/:id` | Get a location by ID                               |
+| POST   | `/locations`     | Create a new location                              |
+| PUT    | `/locations/:id` | Update a location                                  |
+| DELETE | `/locations/:id` | Delete a location                                  |
 
 ### Offers
 
-| Method   | Endpoint                                | Description                                        |
-| -------- | --------------------------------------- | -------------------------------------------------- |
-| GET      | `/offers`                               | List all offers (paginated, filterable by brandId) |
-| GET      | `/offers/:id`                           | Get an offer by ID                                 |
+| Method   | Endpoint                                | Description                                     |
+| -------- | --------------------------------------- | ----------------------------------------------- |
+| GET      | `/offers`                               | List offers (paginated, **brandId required**)   |
+| GET      | `/offers/:id`                           | Get an offer by ID                              |
 | POST     | `/offers`                               | Create a new offer                                 |
 | PUT      | `/offers/:id`                           | Update an offer                                    |
 | DELETE   | `/offers/:id`                           | Delete an offer                                    |
@@ -122,8 +122,12 @@ await this.dynamoDBService.transactWrite({
         Key: { id: locationId },
         UpdateExpression:
           "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+        // Prevent race condition: check at write time, not read time
+        ConditionExpression:
+          "attribute_not_exists(offerIds) OR NOT contains(offerIds, :offerIdValue)",
         ExpressionAttributeValues: {
           ":offerId": new Set([offerId]),
+          ":offerIdValue": offerId,
           ":hasOffer": true,
           ":now": now,
         },
@@ -135,8 +139,12 @@ await this.dynamoDBService.transactWrite({
         Key: { id: offerId },
         UpdateExpression:
           "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
+        // Prevent race condition: check at write time, not read time
+        ConditionExpression:
+          "attribute_not_exists(locationIds) OR NOT contains(locationIds, :locationIdValue)",
         ExpressionAttributeValues: {
           ":locationId": new Set([locationId]),
+          ":locationIdValue": locationId,
           ":inc": 1,
           ":now": now,
         },
@@ -177,13 +185,17 @@ Before linking, the service validates:
 | `id` (PK)   | String        | UUID                                             |
 | `brandId`   | String        | Reference to brand                               |
 | `name`      | String        | Location name                                    |
+| `nameLower` | String        | Lowercase name for case-insensitive uniqueness   |
 | `address`   | String        | Physical address                                 |
 | `offerIds`  | Set\<String\> | Set of linked offer IDs                          |
 | `hasOffer`  | Boolean       | Quick flag indicating if location has any offers |
 | `createdAt` | String        | ISO 8601 timestamp                               |
 | `updatedAt` | String        | ISO 8601 timestamp                               |
 
-**GSI:** `brandId-name-index` (for filtering and uniqueness)
+**GSIs:**
+
+- `brandId-name-index` (for filtering by brand)
+- `brandId-nameLower-index` (for case-insensitive uniqueness checks)
 
 ### Offers Table
 
@@ -219,6 +231,24 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 - Both tables are updated atomically
 - If one update fails, the entire transaction is rolled back
 - No partial states can occur
+
+### Race Condition Prevention
+
+The link/unlink operations use `ConditionExpression` to prevent race conditions:
+
+**Problem:** Two concurrent requests to link the same offer to the same location could both pass the pre-transaction validation check, resulting in the counter being incremented twice while the Set only contains one entry.
+
+**Solution:** Check existence at write time using `ConditionExpression`:
+
+```typescript
+// For linking - fail if already linked
+ConditionExpression: "attribute_not_exists(locationIds) OR NOT contains(locationIds, :locationIdValue)"
+
+// For unlinking - fail if not linked
+ConditionExpression: "contains(locationIds, :locationIdValue)"
+```
+
+This ensures the check and update happen atomically, preventing counter drift from concurrent operations.
 
 ## Design Decisions
 
@@ -357,17 +387,6 @@ npm run test:cov
 npm test -- --testPathPattern=offers
 ```
 
-### Test Summary
-
-| Module    | Service | Controller | Repository | Total   |
-| --------- | ------- | ---------- | ---------- | ------- |
-| Brands    | 18      | 5          | 14         | 37      |
-| Locations | 18      | 5          | 18         | 41      |
-| Offers    | 32      | 7          | 17         | 56      |
-| DynamoDB  | -       | -          | 12         | 12      |
-| Utils     | -       | -          | 9          | 9       |
-| **Total** |         |            |            | **155** |
-
 ## API Usage Examples
 
 ### Create a Brand
@@ -423,7 +442,7 @@ src/
 ├── lambda.ts                  # Lambda handler entry point
 ├── app.module.ts              # Root module
 ├── common/
-│   └── utils.ts               # Utility functions (generateId, timestamp)
+│   └── utils.ts               # Utility functions (generateId, timestamp, hasItem)
 ├── dynamodb/
 │   ├── dynamodb.module.ts     # DynamoDB module
 │   ├── dynamodb.service.ts    # DynamoDB client wrapper
