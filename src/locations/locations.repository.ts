@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 import { DynamoDBService, Tables } from "../dynamodb/dynamodb.service";
 import { Location } from "../dynamodb/entities";
 
@@ -38,7 +39,7 @@ export class LocationsRepository {
       });
 
       return {
-        items: (result.Items as Location[]) || [],
+        items: plainToInstance(Location, result.Items || []),
         nextCursor: result.LastEvaluatedKey
           ? this.encodeCursor(result.LastEvaluatedKey)
           : undefined,
@@ -51,7 +52,7 @@ export class LocationsRepository {
     });
 
     return {
-      items: (result.Items as Location[]) || [],
+      items: plainToInstance(Location, result.Items || []),
       nextCursor: result.LastEvaluatedKey
         ? this.encodeCursor(result.LastEvaluatedKey)
         : undefined,
@@ -60,14 +61,14 @@ export class LocationsRepository {
 
   async create(location: Location): Promise<Location> {
     await this.dynamoDBService.put(Tables.LOCATIONS, { Item: location });
-    return location;
+    return plainToInstance(Location, location);
   }
 
   async findById(id: string): Promise<Location | null> {
     const result = await this.dynamoDBService.get(Tables.LOCATIONS, {
       Key: { id },
     });
-    return (result.Item as Location) || null;
+    return result.Item ? plainToInstance(Location, result.Item) : null;
   }
 
   async findByBrandIdAndName(
@@ -80,12 +81,12 @@ export class LocationsRepository {
       ExpressionAttributeNames: { "#name": "name" },
       ExpressionAttributeValues: { ":brandId": brandId, ":name": name },
     });
-    return (result.Items?.[0] as Location) || null;
+    return result.Items?.[0] ? plainToInstance(Location, result.Items[0]) : null;
   }
 
   async update(location: Location): Promise<Location> {
     await this.dynamoDBService.put(Tables.LOCATIONS, { Item: location });
-    return location;
+    return plainToInstance(Location, location);
   }
 
   async delete(id: string): Promise<void> {
