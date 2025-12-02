@@ -1,4 +1,4 @@
-import { generateId, timestamp } from "./utils";
+import { generateId, timestamp, hasItem } from "./utils";
 
 describe("utils", () => {
   describe("generateId", () => {
@@ -70,6 +70,66 @@ describe("utils", () => {
       const ts = timestamp();
 
       expect(ts.endsWith("Z")).toBe(true);
+    });
+  });
+
+  describe("hasItem", () => {
+    describe("with Set", () => {
+      it("should return true if item exists in Set", () => {
+        const set = new Set(["a", "b", "c"]);
+
+        expect(hasItem(set, "b")).toBe(true);
+      });
+
+      it("should return false if item does not exist in Set", () => {
+        const set = new Set(["a", "b", "c"]);
+
+        expect(hasItem(set, "d")).toBe(false);
+      });
+
+      it("should work with numeric Sets", () => {
+        const set = new Set([1, 2, 3]);
+
+        expect(hasItem(set, 2)).toBe(true);
+        expect(hasItem(set, 4)).toBe(false);
+      });
+    });
+
+    describe("with Array", () => {
+      it("should return true if item exists in Array", () => {
+        const arr = ["a", "b", "c"];
+
+        expect(hasItem(arr, "b")).toBe(true);
+      });
+
+      it("should return false if item does not exist in Array", () => {
+        const arr = ["a", "b", "c"];
+
+        expect(hasItem(arr, "d")).toBe(false);
+      });
+
+      it("should work with numeric Arrays", () => {
+        const arr = [1, 2, 3];
+
+        expect(hasItem(arr, 2)).toBe(true);
+        expect(hasItem(arr, 4)).toBe(false);
+      });
+    });
+
+    describe("with undefined", () => {
+      it("should return false for undefined collection", () => {
+        expect(hasItem(undefined, "a")).toBe(false);
+      });
+    });
+
+    describe("with empty collections", () => {
+      it("should return false for empty Set", () => {
+        expect(hasItem(new Set(), "a")).toBe(false);
+      });
+
+      it("should return false for empty Array", () => {
+        expect(hasItem([], "a")).toBe(false);
+      });
     });
   });
 });
