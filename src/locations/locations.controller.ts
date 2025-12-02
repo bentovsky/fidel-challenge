@@ -54,22 +54,4 @@ export class LocationsController {
   remove(@Param("id", ParseUUIDPipe) id: string) {
     return this.locationsService.remove(id);
   }
-
-  @Post(":id/offers/:offerId")
-  @HttpCode(HttpStatus.CREATED)
-  addOffer(
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("offerId", ParseUUIDPipe) offerId: string
-  ) {
-    return this.locationsService.addOffer(id, offerId);
-  }
-
-  @Delete(":id/offers/:offerId")
-  @HttpCode(HttpStatus.NO_CONTENT)
-  removeOffer(
-    @Param("id", ParseUUIDPipe) id: string,
-    @Param("offerId", ParseUUIDPipe) offerId: string
-  ) {
-    return this.locationsService.removeOffer(id, offerId);
-  }
 }
