@@ -122,6 +122,8 @@ resources:
             AttributeType: S
           - AttributeName: name
             AttributeType: S
+          - AttributeName: nameLower
+            AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH
@@ -131,6 +133,14 @@ resources:
               - AttributeName: brandId
                 KeyType: HASH
               - AttributeName: name
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: brandId-nameLower-index
+            KeySchema:
+              - AttributeName: brandId
+                KeyType: HASH
+              - AttributeName: nameLower
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
