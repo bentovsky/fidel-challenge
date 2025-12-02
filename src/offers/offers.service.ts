@@ -13,6 +13,12 @@ import { generateId, timestamp } from "../common/utils";
 
 const DEFAULT_PAGE_SIZE = 10;
 
+/**
+ * Checks if an item exists in a collection (Set or Array).
+ * @param collection - The Set or Array to search in
+ * @param item - The item to find
+ * @returns True if the item exists in the collection
+ */
 function hasItem<T>(collection: Set<T> | T[] | undefined, item: T): boolean {
   if (!collection) return false;
   if (collection instanceof Set) return collection.has(item);
@@ -101,11 +107,19 @@ export class OffersService {
     await this.offersRepository.delete(id);
   }
 
+  /**
+   * Links a location to an offer using a DynamoDB transaction.
+   * Atomically updates both the offer and location records.
+   *
+   * @param offerId - The ID of the offer to link
+   * @param locationId - The ID of the location to link to the offer
+   * @returns The updated offer with incremented locationsTotal
+   * @throws NotFoundException if offer or location doesn't exist
+   * @throws ConflictException if location belongs to a different brand or is already linked
+   */
   async linkToLocation(offerId: string, locationId: string): Promise<Offer> {
-    // Validate offer exists
     const offer = await this.findOne(offerId);
 
-    // Validate location exists and belongs to the same brand
     const location = await this.locationsService.findOne(locationId);
     if (location.brandId !== offer.brandId) {
       throw new ConflictException(
@@ -113,7 +127,6 @@ export class OffersService {
       );
     }
 
-    // Check if already linked
     if (hasItem(location.offerIds, offerId)) {
       throw new ConflictException(
         `Offer ${offerId} is already linked to this location`
@@ -162,11 +175,20 @@ export class OffersService {
     };
   }
 
+  /**
+   * Unlinks a location from an offer using a DynamoDB transaction.
+   * Atomically updates both the offer and location records.
+   * Sets hasOffer to false if no other offers are linked to the location.
+   *
+   * @param offerId - The ID of the offer to unlink
+   * @param locationId - The ID of the location to unlink from the offer
+   * @returns The updated offer with decremented locationsTotal
+   * @throws NotFoundException if offer, location, or link doesn't exist
+   * @throws ConflictException if location belongs to a different brand
+   */
   async unlinkFromLocation(offerId: string, locationId: string): Promise<Offer> {
-    // Validate offer exists
     const offer = await this.findOne(offerId);
 
-    // Validate location exists and belongs to the same brand
     const location = await this.locationsService.findOne(locationId);
     if (location.brandId !== offer.brandId) {
       throw new ConflictException(
@@ -174,7 +196,6 @@ export class OffersService {
       );
     }
 
-    // Check if link exists
     if (!hasItem(location.offerIds, offerId)) {
       throw new NotFoundException(
         `Offer ${offerId} is not linked to this location`
