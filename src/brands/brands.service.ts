@@ -15,7 +15,8 @@ export class BrandsService {
   }
 
   async create(createBrandDto: CreateBrandDto): Promise<Brand> {
-    const existing = await this.brandsRepository.findByName(createBrandDto.name);
+    const nameLower = createBrandDto.name.toLowerCase();
+    const existing = await this.brandsRepository.findByNameLower(nameLower);
     if (existing) {
       throw new ConflictException(`Brand with name "${createBrandDto.name}" already exists`);
     }
@@ -24,6 +25,7 @@ export class BrandsService {
     const brand: Brand = {
       id: generateId(),
       ...createBrandDto,
+      nameLower,
       createdAt: now,
       updatedAt: now,
     };
@@ -42,16 +44,21 @@ export class BrandsService {
   async update(id: string, updateBrandDto: UpdateBrandDto): Promise<Brand> {
     const brand = await this.findOne(id);
 
-    if (updateBrandDto.name && updateBrandDto.name !== brand.name) {
-      const existing = await this.brandsRepository.findByName(updateBrandDto.name);
-      if (existing) {
-        throw new ConflictException(`Brand with name "${updateBrandDto.name}" already exists`);
+    let nameLower: string | undefined;
+    if (updateBrandDto.name) {
+      nameLower = updateBrandDto.name.toLowerCase();
+      if (nameLower !== brand.nameLower) {
+        const existing = await this.brandsRepository.findByNameLower(nameLower);
+        if (existing) {
+          throw new ConflictException(`Brand with name "${updateBrandDto.name}" already exists`);
+        }
       }
     }
 
     const updatedBrand: Brand = {
       ...brand,
       ...updateBrandDto,
+      ...(nameLower && { nameLower }),
       updatedAt: timestamp(),
     };
 

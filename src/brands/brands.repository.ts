@@ -45,12 +45,11 @@ export class BrandsRepository {
     return (result.Item as Brand) || null;
   }
 
-  async findByName(name: string): Promise<Brand | null> {
+  async findByNameLower(nameLower: string): Promise<Brand | null> {
     const result = await this.dynamoDBService.query(Tables.BRANDS, {
-      IndexName: "name-index",
-      KeyConditionExpression: "#name = :name",
-      ExpressionAttributeNames: { "#name": "name" },
-      ExpressionAttributeValues: { ":name": name },
+      IndexName: "nameLower-index",
+      KeyConditionExpression: "nameLower = :nameLower",
+      ExpressionAttributeValues: { ":nameLower": nameLower },
     });
     return (result.Items?.[0] as Brand) || null;
   }
