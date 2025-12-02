@@ -13,6 +13,12 @@ import { generateId, timestamp } from "../common/utils";
 
 const DEFAULT_PAGE_SIZE = 10;
 
+function hasItem<T>(collection: Set<T> | T[] | undefined, item: T): boolean {
+  if (!collection) return false;
+  if (collection instanceof Set) return collection.has(item);
+  return collection.includes(item);
+}
+
 @Injectable()
 export class OffersService {
   constructor(
@@ -108,7 +114,7 @@ export class OffersService {
     }
 
     // Check if already linked
-    if (location.offerIds?.has(offerId)) {
+    if (hasItem(location.offerIds, offerId)) {
       throw new ConflictException(
         `Offer ${offerId} is already linked to this location`
       );
@@ -169,16 +175,17 @@ export class OffersService {
     }
 
     // Check if link exists
-    if (!location.offerIds?.has(offerId)) {
+    if (!hasItem(location.offerIds, offerId)) {
       throw new NotFoundException(
         `Offer ${offerId} is not linked to this location`
       );
     }
 
     const now = new Date().toISOString();
-    const remainingOffers = new Set(location.offerIds);
-    remainingOffers.delete(offerId);
-    const hasOffer = remainingOffers.size > 0;
+    const offerIdsArray = location.offerIds instanceof Set
+      ? Array.from(location.offerIds)
+      : (location.offerIds || []);
+    const hasOffer = offerIdsArray.filter(id => id !== offerId).length > 0;
 
     // Use transaction to update both tables atomically
     await this.dynamoDBService.transactWrite({
