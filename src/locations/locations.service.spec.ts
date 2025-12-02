@@ -24,6 +24,7 @@ describe("LocationsService", () => {
     id: "loc-123",
     brandId: "brand-123",
     name: "Oxford Street",
+    nameLower: "oxford street",
     address: "123 Oxford Street, London",
     hasOffer: false,
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -36,6 +37,7 @@ describe("LocationsService", () => {
       create: jest.fn(),
       findById: jest.fn(),
       findByBrandIdAndName: jest.fn(),
+      findByBrandIdAndNameLower: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
@@ -58,16 +60,16 @@ describe("LocationsService", () => {
   });
 
   describe("findAll", () => {
-    it("should return paginated locations", async () => {
+    it("should return paginated locations for a brand", async () => {
       const paginatedResult = {
         items: [mockLocation],
         nextCursor: "abc123",
       };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await service.findAll(10, undefined, undefined);
+      const result = await service.findAll("brand-123", 10, undefined);
 
-      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, undefined);
+      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, "brand-123");
       expect(result).toEqual(paginatedResult);
     });
 
@@ -75,16 +77,16 @@ describe("LocationsService", () => {
       const paginatedResult = { items: [], nextCursor: undefined };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      await service.findAll(undefined, undefined, undefined);
+      await service.findAll("brand-123", undefined, undefined);
 
-      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, undefined);
+      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, "brand-123");
     });
 
-    it("should pass brandId filter", async () => {
+    it("should pass cursor for pagination", async () => {
       const paginatedResult = { items: [mockLocation], nextCursor: undefined };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      await service.findAll(5, "cursor123", "brand-123");
+      await service.findAll("brand-123", 5, "cursor123");
 
       expect(repository.findAll).toHaveBeenCalledWith(5, "cursor123", "brand-123");
     });
@@ -99,20 +101,21 @@ describe("LocationsService", () => {
 
     it("should create a new location", async () => {
       brandsService.findOne.mockResolvedValue(mockBrand);
-      repository.findByBrandIdAndName.mockResolvedValue(null);
+      repository.findByBrandIdAndNameLower.mockResolvedValue(null);
       repository.create.mockResolvedValue(mockLocation);
 
       const result = await service.create(createLocationDto);
 
       expect(brandsService.findOne).toHaveBeenCalledWith("brand-123");
-      expect(repository.findByBrandIdAndName).toHaveBeenCalledWith(
+      expect(repository.findByBrandIdAndNameLower).toHaveBeenCalledWith(
         "brand-123",
-        "Oxford Street"
+        "oxford street"
       );
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           brandId: "brand-123",
           name: "Oxford Street",
+          nameLower: "oxford street",
           address: "123 Oxford Street, London",
           hasOffer: false,
         })
@@ -131,9 +134,9 @@ describe("LocationsService", () => {
       expect(repository.create).not.toHaveBeenCalled();
     });
 
-    it("should throw ConflictException if location name already exists for brand", async () => {
+    it("should throw ConflictException if location name already exists for brand (case-insensitive)", async () => {
       brandsService.findOne.mockResolvedValue(mockBrand);
-      repository.findByBrandIdAndName.mockResolvedValue(mockLocation);
+      repository.findByBrandIdAndNameLower.mockResolvedValue(mockLocation);
 
       await expect(service.create(createLocationDto)).rejects.toThrow(
         ConflictException
@@ -144,14 +147,15 @@ describe("LocationsService", () => {
       expect(repository.create).not.toHaveBeenCalled();
     });
 
-    it("should generate id and timestamps for new location", async () => {
+    it("should generate id, nameLower and timestamps for new location", async () => {
       brandsService.findOne.mockResolvedValue(mockBrand);
-      repository.findByBrandIdAndName.mockResolvedValue(null);
+      repository.findByBrandIdAndNameLower.mockResolvedValue(null);
       repository.create.mockImplementation(async (location) => location);
 
       const result = await service.create(createLocationDto);
 
       expect(result.id).toBeDefined();
+      expect(result.nameLower).toBe("oxford street");
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
       expect(result.hasOffer).toBe(false);
@@ -188,12 +192,13 @@ describe("LocationsService", () => {
 
     it("should update a location", async () => {
       repository.findById.mockResolvedValue(mockLocation);
-      repository.findByBrandIdAndName.mockResolvedValue(null);
+      repository.findByBrandIdAndNameLower.mockResolvedValue(null);
       repository.update.mockImplementation(async (location) => location);
 
       const result = await service.update(mockLocation.id, updateLocationDto);
 
       expect(result.name).toBe("New Oxford Street");
+      expect(result.nameLower).toBe("new oxford street");
       expect(result.address).toBe("456 Oxford Street, London");
     });
 
@@ -205,26 +210,27 @@ describe("LocationsService", () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it("should throw ConflictException if new name conflicts with existing location", async () => {
+    it("should throw ConflictException if new name conflicts with existing location (case-insensitive)", async () => {
       const anotherLocation = { ...mockLocation, id: "different-id" };
       repository.findById.mockResolvedValue(mockLocation);
-      repository.findByBrandIdAndName.mockResolvedValue(anotherLocation);
+      repository.findByBrandIdAndNameLower.mockResolvedValue(anotherLocation);
 
       await expect(
         service.update(mockLocation.id, { name: "Existing Location" })
       ).rejects.toThrow(ConflictException);
     });
 
-    it("should allow updating to same name (no conflict check)", async () => {
+    it("should allow updating to same name with different casing (no conflict check)", async () => {
       repository.findById.mockResolvedValue(mockLocation);
       repository.update.mockImplementation(async (location) => location);
 
       const result = await service.update(mockLocation.id, {
-        name: mockLocation.name,
+        name: "OXFORD STREET",
       });
 
-      expect(repository.findByBrandIdAndName).not.toHaveBeenCalled();
-      expect(result.name).toBe(mockLocation.name);
+      expect(repository.findByBrandIdAndNameLower).not.toHaveBeenCalled();
+      expect(result.name).toBe("OXFORD STREET");
+      expect(result.nameLower).toBe(mockLocation.nameLower);
     });
 
     it("should update only provided fields", async () => {

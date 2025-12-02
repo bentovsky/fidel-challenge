@@ -84,6 +84,18 @@ export class LocationsRepository {
     return result.Items?.[0] ? plainToInstance(Location, result.Items[0]) : null;
   }
 
+  async findByBrandIdAndNameLower(
+    brandId: string,
+    nameLower: string
+  ): Promise<Location | null> {
+    const result = await this.dynamoDBService.query(Tables.LOCATIONS, {
+      IndexName: "brandId-nameLower-index",
+      KeyConditionExpression: "brandId = :brandId AND nameLower = :nameLower",
+      ExpressionAttributeValues: { ":brandId": brandId, ":nameLower": nameLower },
+    });
+    return result.Items?.[0] ? plainToInstance(Location, result.Items[0]) : null;
+  }
+
   async update(location: Location): Promise<Location> {
     await this.dynamoDBService.put(Tables.LOCATIONS, { Item: location });
     return plainToInstance(Location, location);

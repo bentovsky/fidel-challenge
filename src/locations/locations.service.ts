@@ -23,16 +23,16 @@ export class LocationsService {
   ) {}
 
   /**
-   * Retrieves a paginated list of locations.
+   * Retrieves a paginated list of locations for a specific brand.
+   * @param brandId - The brand ID to filter locations by (required)
    * @param limit - Maximum number of locations to return (default: 10)
    * @param cursor - Pagination cursor for fetching next page
-   * @param brandId - Optional filter by brand ID
    * @returns Paginated result containing locations and optional next cursor
    */
   async findAll(
+    brandId: string,
     limit?: number,
-    cursor?: string,
-    brandId?: string
+    cursor?: string
   ): Promise<PaginatedResult<Location>> {
     return this.locationsRepository.findAll(
       limit || DEFAULT_PAGE_SIZE,
@@ -46,14 +46,15 @@ export class LocationsService {
    * @param createLocationDto - Location creation data including brandId
    * @returns The newly created location with hasOffer set to false
    * @throws NotFoundException if the brand doesn't exist
-   * @throws ConflictException if a location with the same name exists for the brand
+   * @throws ConflictException if a location with the same name exists for the brand (case-insensitive)
    */
   async create(createLocationDto: CreateLocationDto): Promise<Location> {
     await this.brandsService.findOne(createLocationDto.brandId);
 
-    const existing = await this.locationsRepository.findByBrandIdAndName(
+    const nameLower = createLocationDto.name.toLowerCase();
+    const existing = await this.locationsRepository.findByBrandIdAndNameLower(
       createLocationDto.brandId,
-      createLocationDto.name
+      nameLower
     );
     if (existing) {
       throw new ConflictException(
@@ -65,6 +66,7 @@ export class LocationsService {
     const location: Location = {
       id: generateId(),
       ...createLocationDto,
+      nameLower,
       hasOffer: false,
       createdAt: now,
       updatedAt: now,
@@ -93,7 +95,7 @@ export class LocationsService {
    * @param updateLocationDto - Partial location data to update
    * @returns The updated location
    * @throws NotFoundException if location doesn't exist
-   * @throws ConflictException if new name conflicts with existing location for the brand
+   * @throws ConflictException if new name conflicts with existing location for the brand (case-insensitive)
    */
   async update(
     id: string,
@@ -101,21 +103,26 @@ export class LocationsService {
   ): Promise<Location> {
     const location = await this.findOne(id);
 
-    if (updateLocationDto.name && updateLocationDto.name !== location.name) {
-      const existing = await this.locationsRepository.findByBrandIdAndName(
-        location.brandId,
-        updateLocationDto.name
-      );
-      if (existing) {
-        throw new ConflictException(
-          `Location with name "${updateLocationDto.name}" already exists for this brand`
+    let nameLower: string | undefined;
+    if (updateLocationDto.name) {
+      nameLower = updateLocationDto.name.toLowerCase();
+      if (nameLower !== location.nameLower) {
+        const existing = await this.locationsRepository.findByBrandIdAndNameLower(
+          location.brandId,
+          nameLower
         );
+        if (existing) {
+          throw new ConflictException(
+            `Location with name "${updateLocationDto.name}" already exists for this brand`
+          );
+        }
       }
     }
 
     const updatedLocation: Location = {
       ...location,
       ...updateLocationDto,
+      ...(nameLower && { nameLower }),
       updatedAt: timestamp(),
     };
 

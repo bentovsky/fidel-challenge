@@ -11,6 +11,7 @@ describe("LocationsController", () => {
     id: "loc-123",
     brandId: "brand-123",
     name: "Oxford Street",
+    nameLower: "oxford street",
     address: "123 Oxford Street, London",
     hasOffer: false,
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -41,7 +42,7 @@ describe("LocationsController", () => {
   });
 
   describe("findAll", () => {
-    it("should return paginated locations", async () => {
+    it("should return paginated locations for a brand", async () => {
       const paginatedResult = {
         items: [mockLocation],
         nextCursor: "abc123",
@@ -49,12 +50,12 @@ describe("LocationsController", () => {
       service.findAll.mockResolvedValue(paginatedResult);
 
       const result = await controller.findAll({
+        brandId: "brand-123",
         limit: 10,
         cursor: undefined,
-        brandId: undefined,
       });
 
-      expect(service.findAll).toHaveBeenCalledWith(10, undefined, undefined);
+      expect(service.findAll).toHaveBeenCalledWith("brand-123", 10, undefined);
       expect(result).toEqual(paginatedResult);
     });
 
@@ -63,12 +64,12 @@ describe("LocationsController", () => {
       service.findAll.mockResolvedValue(paginatedResult);
 
       await controller.findAll({
+        brandId: "brand-123",
         limit: 5,
         cursor: "cursor123",
-        brandId: "brand-123",
       });
 
-      expect(service.findAll).toHaveBeenCalledWith(5, "cursor123", "brand-123");
+      expect(service.findAll).toHaveBeenCalledWith("brand-123", 5, "cursor123");
     });
   });
 

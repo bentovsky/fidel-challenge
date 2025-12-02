@@ -25,9 +25,9 @@ export class LocationsController {
   @Get()
   findAll(@Query() query: FindAllLocationsDto) {
     return this.locationsService.findAll(
+      query.brandId,
       query.limit,
-      query.cursor,
-      query.brandId
+      query.cursor
     );
   }
 

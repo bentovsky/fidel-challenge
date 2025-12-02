@@ -19,6 +19,7 @@ describe("LocationsRepository", () => {
     id: "loc-123",
     brandId: "brand-123",
     name: "Oxford Street",
+    nameLower: "oxford street",
     address: "123 Oxford Street, London",
     hasOffer: false,
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -233,6 +234,58 @@ describe("LocationsRepository", () => {
       });
 
       const result = await repository.findByBrandIdAndName(
+        "brand-123",
+        "nonexistent"
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("findByBrandIdAndNameLower", () => {
+    it("should return location when found", async () => {
+      dynamoDBService.query.mockResolvedValue({
+        $metadata: mockMetadata,
+        Items: [mockLocation],
+      });
+
+      const result = await repository.findByBrandIdAndNameLower(
+        "brand-123",
+        "oxford street"
+      );
+
+      expect(dynamoDBService.query).toHaveBeenCalledWith(Tables.LOCATIONS, {
+        IndexName: "brandId-nameLower-index",
+        KeyConditionExpression: "brandId = :brandId AND nameLower = :nameLower",
+        ExpressionAttributeValues: {
+          ":brandId": "brand-123",
+          ":nameLower": "oxford street",
+        },
+      });
+      expect(result).toBeInstanceOf(Location);
+    });
+
+    it("should return null when no location found", async () => {
+      dynamoDBService.query.mockResolvedValue({
+        $metadata: mockMetadata,
+        Items: [],
+      });
+
+      const result = await repository.findByBrandIdAndNameLower(
+        "brand-123",
+        "nonexistent"
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null when Items is undefined", async () => {
+      dynamoDBService.query.mockResolvedValue({
+        $metadata: mockMetadata,
+        Items: undefined,
+      });
+
+      const result = await repository.findByBrandIdAndNameLower(
         "brand-123",
         "nonexistent"
       );
