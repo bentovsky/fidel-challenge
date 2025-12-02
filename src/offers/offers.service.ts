@@ -9,21 +9,9 @@ import { OffersRepository, PaginatedResult } from "./offers.repository";
 import { DynamoDBService, Tables } from "../dynamodb/dynamodb.service";
 import { BrandsService } from "../brands/brands.service";
 import { LocationsService } from "../locations/locations.service";
-import { generateId, timestamp } from "../common/utils";
+import { generateId, timestamp, hasItem } from "../common/utils";
 
 const DEFAULT_PAGE_SIZE = 10;
-
-/**
- * Checks if an item exists in a collection (Set or Array).
- * @param collection - The Set or Array to search in
- * @param item - The item to find
- * @returns True if the item exists in the collection
- */
-function hasItem<T>(collection: Set<T> | T[] | undefined, item: T): boolean {
-  if (!collection) return false;
-  if (collection instanceof Set) return collection.has(item);
-  return collection.includes(item);
-}
 
 @Injectable()
 export class OffersService {
@@ -34,6 +22,11 @@ export class OffersService {
     private readonly locationsService: LocationsService
   ) {}
 
+  /**
+   * Retrieves a paginated list of offers for a specific brand.
+   * @param query - Query parameters including required brandId
+   * @returns Paginated result containing offers and optional next cursor
+   */
   async findAll(query: FindAllOffersDto): Promise<PaginatedResult<Offer>> {
     return this.offersRepository.findAll(
       query.limit || DEFAULT_PAGE_SIZE,
@@ -136,36 +129,55 @@ export class OffersService {
     const now = new Date().toISOString();
 
     // Use transaction to update both tables atomically
-    await this.dynamoDBService.transactWrite({
-      TransactItems: [
-        {
-          Update: {
-            TableName: Tables.LOCATIONS,
-            Key: { id: locationId },
-            UpdateExpression:
-              "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
-            ExpressionAttributeValues: {
-              ":offerId": new Set([offerId]),
-              ":hasOffer": true,
-              ":now": now,
+    // ConditionExpressions prevent race conditions by checking at write time
+    try {
+      await this.dynamoDBService.transactWrite({
+        TransactItems: [
+          {
+            Update: {
+              TableName: Tables.LOCATIONS,
+              Key: { id: locationId },
+              UpdateExpression:
+                "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+              ConditionExpression:
+                "attribute_not_exists(offerIds) OR NOT contains(offerIds, :offerIdValue)",
+              ExpressionAttributeValues: {
+                ":offerId": new Set([offerId]),
+                ":offerIdValue": offerId,
+                ":hasOffer": true,
+                ":now": now,
+              },
             },
           },
-        },
-        {
-          Update: {
-            TableName: Tables.OFFERS,
-            Key: { id: offerId },
-            UpdateExpression:
-              "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
-            ExpressionAttributeValues: {
-              ":locationId": new Set([locationId]),
-              ":inc": 1,
-              ":now": now,
+          {
+            Update: {
+              TableName: Tables.OFFERS,
+              Key: { id: offerId },
+              UpdateExpression:
+                "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
+              ConditionExpression:
+                "attribute_not_exists(locationIds) OR NOT contains(locationIds, :locationIdValue)",
+              ExpressionAttributeValues: {
+                ":locationId": new Set([locationId]),
+                ":locationIdValue": locationId,
+                ":inc": 1,
+                ":now": now,
+              },
             },
           },
-        },
-      ],
-    });
+        ],
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.name === "TransactionCanceledException"
+      ) {
+        throw new ConflictException(
+          `Offer ${offerId} is already linked to location ${locationId}`
+        );
+      }
+      throw error;
+    }
 
     return {
       ...offer,
@@ -209,38 +221,55 @@ export class OffersService {
     const hasOffer = offerIdsArray.filter(id => id !== offerId).length > 0;
 
     // Use transaction to update both tables atomically
-    await this.dynamoDBService.transactWrite({
-      TransactItems: [
-        {
-          Update: {
-            TableName: Tables.LOCATIONS,
-            Key: { id: locationId },
-            UpdateExpression:
-              "DELETE offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
-            ExpressionAttributeValues: {
-              ":offerId": new Set([offerId]),
-              ":hasOffer": hasOffer,
-              ":now": now,
+    // ConditionExpressions prevent race conditions by checking at write time
+    try {
+      await this.dynamoDBService.transactWrite({
+        TransactItems: [
+          {
+            Update: {
+              TableName: Tables.LOCATIONS,
+              Key: { id: locationId },
+              UpdateExpression:
+                "DELETE offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+              ConditionExpression: "contains(offerIds, :offerIdValue)",
+              ExpressionAttributeValues: {
+                ":offerId": new Set([offerId]),
+                ":offerIdValue": offerId,
+                ":hasOffer": hasOffer,
+                ":now": now,
+              },
             },
           },
-        },
-        {
-          Update: {
-            TableName: Tables.OFFERS,
-            Key: { id: offerId },
-            UpdateExpression:
-              "DELETE locationIds :locationId SET locationsTotal = locationsTotal - :dec, updatedAt = :now",
-            ConditionExpression: "locationsTotal > :zero",
-            ExpressionAttributeValues: {
-              ":locationId": new Set([locationId]),
-              ":dec": 1,
-              ":zero": 0,
-              ":now": now,
+          {
+            Update: {
+              TableName: Tables.OFFERS,
+              Key: { id: offerId },
+              UpdateExpression:
+                "DELETE locationIds :locationId SET locationsTotal = locationsTotal - :dec, updatedAt = :now",
+              ConditionExpression:
+                "locationsTotal > :zero AND contains(locationIds, :locationIdValue)",
+              ExpressionAttributeValues: {
+                ":locationId": new Set([locationId]),
+                ":locationIdValue": locationId,
+                ":dec": 1,
+                ":zero": 0,
+                ":now": now,
+              },
             },
           },
-        },
-      ],
-    });
+        ],
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.name === "TransactionCanceledException"
+      ) {
+        throw new NotFoundException(
+          `Offer ${offerId} is not linked to location ${locationId}`
+        );
+      }
+      throw error;
+    }
 
     const newLocationIds = new Set(offer.locationIds);
     newLocationIds.delete(locationId);

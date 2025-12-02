@@ -39,6 +39,7 @@ describe("OffersService", () => {
     id: "loc-123",
     brandId: "brand-123",
     name: "Oxford Street",
+    nameLower: "oxford street",
     address: "123 Oxford Street, London",
     hasOffer: false,
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -85,16 +86,16 @@ describe("OffersService", () => {
   });
 
   describe("findAll", () => {
-    it("should return paginated offers", async () => {
+    it("should return paginated offers for a brand", async () => {
       const paginatedResult = {
         items: [mockOffer],
         nextCursor: "abc123",
       };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await service.findAll({ limit: 10 });
+      const result = await service.findAll({ brandId: "brand-123", limit: 10 });
 
-      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, undefined);
+      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, "brand-123");
       expect(result).toEqual(paginatedResult);
     });
 
@@ -102,16 +103,16 @@ describe("OffersService", () => {
       const paginatedResult = { items: [], nextCursor: undefined };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      await service.findAll({});
+      await service.findAll({ brandId: "brand-123" });
 
-      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, undefined);
+      expect(repository.findAll).toHaveBeenCalledWith(10, undefined, "brand-123");
     });
 
-    it("should pass brandId filter", async () => {
+    it("should pass cursor for pagination", async () => {
       const paginatedResult = { items: [mockOffer], nextCursor: undefined };
       repository.findAll.mockResolvedValue(paginatedResult);
 
-      await service.findAll({ limit: 5, cursor: "cursor123", brandId: "brand-123" });
+      await service.findAll({ brandId: "brand-123", limit: 5, cursor: "cursor123" });
 
       expect(repository.findAll).toHaveBeenCalledWith(5, "cursor123", "brand-123");
     });

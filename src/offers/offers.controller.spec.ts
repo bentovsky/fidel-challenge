@@ -43,14 +43,14 @@ describe("OffersController", () => {
   });
 
   describe("findAll", () => {
-    it("should return paginated offers", async () => {
+    it("should return paginated offers for a brand", async () => {
       const paginatedResult = {
         items: [mockOffer],
         nextCursor: "abc123",
       };
       service.findAll.mockResolvedValue(paginatedResult);
 
-      const query = { limit: 10, cursor: undefined, brandId: undefined };
+      const query = { brandId: "brand-123", limit: 10, cursor: undefined };
       const result = await controller.findAll(query);
 
       expect(service.findAll).toHaveBeenCalledWith(query);
@@ -61,7 +61,7 @@ describe("OffersController", () => {
       const paginatedResult = { items: [], nextCursor: undefined };
       service.findAll.mockResolvedValue(paginatedResult);
 
-      const query = { limit: 5, cursor: "cursor123", brandId: "brand-123" };
+      const query = { brandId: "brand-123", limit: 5, cursor: "cursor123" };
       await controller.findAll(query);
 
       expect(service.findAll).toHaveBeenCalledWith(query);

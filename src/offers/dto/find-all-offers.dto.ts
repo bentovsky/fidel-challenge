@@ -2,9 +2,8 @@ import { IsOptional, IsInt, IsString, Min, Max, IsBase64, IsUUID } from "class-v
 import { Type } from "class-transformer";
 
 export class FindAllOffersDto {
-  @IsOptional()
-  @IsUUID()
-  brandId?: string;
+  @IsUUID("4", { message: "brandId must be a valid UUID" })
+  brandId!: string;
 
   @IsOptional()
   @Type(() => Number)
