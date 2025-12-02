@@ -8,13 +8,13 @@ This is a serverless Offers API platform built with NestJS, AWS Lambda, and Dyna
 
 ### Technology Stack
 
-| Component | Technology |
-|-----------|------------|
-| Framework | NestJS |
-| Runtime | AWS Lambda (via @vendia/serverless-express) |
-| Database | Amazon DynamoDB |
-| Deployment | Serverless Framework |
-| Language | TypeScript |
+| Component  | Technology                                  |
+| ---------- | ------------------------------------------- |
+| Framework  | NestJS                                      |
+| Runtime    | AWS Lambda (via @vendia/serverless-express) |
+| Database   | Amazon DynamoDB                             |
+| Deployment | Serverless Framework                        |
+| Language   | TypeScript                                  |
 
 ### Architecture Diagram
 
@@ -72,35 +72,35 @@ This is a serverless Offers API platform built with NestJS, AWS Lambda, and Dyna
 
 ### Brands
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/brands` | List all brands (paginated) |
-| GET | `/brands/:id` | Get a brand by ID |
-| POST | `/brands` | Create a new brand |
-| PUT | `/brands/:id` | Update a brand |
-| DELETE | `/brands/:id` | Delete a brand |
+| Method | Endpoint      | Description                 |
+| ------ | ------------- | --------------------------- |
+| GET    | `/brands`     | List all brands (paginated) |
+| GET    | `/brands/:id` | Get a brand by ID           |
+| POST   | `/brands`     | Create a new brand          |
+| PUT    | `/brands/:id` | Update a brand              |
+| DELETE | `/brands/:id` | Delete a brand              |
 
 ### Locations
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/locations` | List all locations (paginated, filterable by brandId) |
-| GET | `/locations/:id` | Get a location by ID |
-| POST | `/locations` | Create a new location |
-| PUT | `/locations/:id` | Update a location |
-| DELETE | `/locations/:id` | Delete a location |
+| Method | Endpoint         | Description                                           |
+| ------ | ---------------- | ----------------------------------------------------- |
+| GET    | `/locations`     | List all locations (paginated, filterable by brandId) |
+| GET    | `/locations/:id` | Get a location by ID                                  |
+| POST   | `/locations`     | Create a new location                                 |
+| PUT    | `/locations/:id` | Update a location                                     |
+| DELETE | `/locations/:id` | Delete a location                                     |
 
 ### Offers
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/offers` | List all offers (paginated, filterable by brandId) |
-| GET | `/offers/:id` | Get an offer by ID |
-| POST | `/offers` | Create a new offer |
-| PUT | `/offers/:id` | Update an offer |
-| DELETE | `/offers/:id` | Delete an offer |
-| **POST** | **`/offers/:id/locations/:locationId`** | **Link a location to an offer** |
-| DELETE | `/offers/:id/locations/:locationId` | Unlink a location from an offer |
+| Method   | Endpoint                                | Description                                        |
+| -------- | --------------------------------------- | -------------------------------------------------- |
+| GET      | `/offers`                               | List all offers (paginated, filterable by brandId) |
+| GET      | `/offers/:id`                           | Get an offer by ID                                 |
+| POST     | `/offers`                               | Create a new offer                                 |
+| PUT      | `/offers/:id`                           | Update an offer                                    |
+| DELETE   | `/offers/:id`                           | Delete an offer                                    |
+| **POST** | **`/offers/:id/locations/:locationId`** | **Link a location to an offer**                    |
+| DELETE   | `/offers/:id/locations/:locationId`     | Unlink a location from an offer                    |
 
 ## Core Feature: Linking Locations to Offers
 
@@ -120,7 +120,8 @@ await this.dynamoDBService.transactWrite({
       Update: {
         TableName: "locations",
         Key: { id: locationId },
-        UpdateExpression: "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+        UpdateExpression:
+          "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
         ExpressionAttributeValues: {
           ":offerId": new Set([offerId]),
           ":hasOffer": true,
@@ -132,7 +133,8 @@ await this.dynamoDBService.transactWrite({
       Update: {
         TableName: "offers",
         Key: { id: offerId },
-        UpdateExpression: "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
+        UpdateExpression:
+          "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
         ExpressionAttributeValues: {
           ":locationId": new Set([locationId]),
           ":inc": 1,
@@ -147,6 +149,7 @@ await this.dynamoDBService.transactWrite({
 ### Validation Rules
 
 Before linking, the service validates:
+
 - The offer exists
 - The location exists
 - The location belongs to the same brand as the offer
@@ -156,46 +159,47 @@ Before linking, the service validates:
 
 ### Brands Table
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `id` (PK) | String | UUID |
-| `name` | String | Brand name |
-| `nameLower` | String | Lowercase name for case-insensitive uniqueness |
-| `description` | String | Brand description |
-| `createdAt` | String | ISO 8601 timestamp |
-| `updatedAt` | String | ISO 8601 timestamp |
+| Attribute     | Type   | Description                                    |
+| ------------- | ------ | ---------------------------------------------- |
+| `id` (PK)     | String | UUID                                           |
+| `name`        | String | Brand name                                     |
+| `nameLower`   | String | Lowercase name for case-insensitive uniqueness |
+| `description` | String | Brand description                              |
+| `createdAt`   | String | ISO 8601 timestamp                             |
+| `updatedAt`   | String | ISO 8601 timestamp                             |
 
 **GSI:** `nameLower-index` (for uniqueness checks)
 
 ### Locations Table
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `id` (PK) | String | UUID |
-| `brandId` | String | Reference to brand |
-| `name` | String | Location name |
-| `address` | String | Physical address |
-| `offerIds` | Set\<String\> | Set of linked offer IDs |
-| `hasOffer` | Boolean | Quick flag indicating if location has any offers |
-| `createdAt` | String | ISO 8601 timestamp |
-| `updatedAt` | String | ISO 8601 timestamp |
+| Attribute   | Type          | Description                                      |
+| ----------- | ------------- | ------------------------------------------------ |
+| `id` (PK)   | String        | UUID                                             |
+| `brandId`   | String        | Reference to brand                               |
+| `name`      | String        | Location name                                    |
+| `address`   | String        | Physical address                                 |
+| `offerIds`  | Set\<String\> | Set of linked offer IDs                          |
+| `hasOffer`  | Boolean       | Quick flag indicating if location has any offers |
+| `createdAt` | String        | ISO 8601 timestamp                               |
+| `updatedAt` | String        | ISO 8601 timestamp                               |
 
 **GSI:** `brandId-name-index` (for filtering and uniqueness)
 
 ### Offers Table
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `id` (PK) | String | UUID |
-| `brandId` | String | Reference to brand |
-| `name` | String | Offer name |
-| `description` | String | Offer description |
-| `locationIds` | Set\<String\> | Set of linked location IDs |
-| `locationsTotal` | Number | Counter of linked locations |
-| `createdAt` | String | ISO 8601 timestamp |
-| `updatedAt` | String | ISO 8601 timestamp |
+| Attribute        | Type          | Description                 |
+| ---------------- | ------------- | --------------------------- |
+| `id` (PK)        | String        | UUID                        |
+| `brandId`        | String        | Reference to brand          |
+| `name`           | String        | Offer name                  |
+| `description`    | String        | Offer description           |
+| `locationIds`    | Set\<String\> | Set of linked location IDs  |
+| `locationsTotal` | Number        | Counter of linked locations |
+| `createdAt`      | String        | ISO 8601 timestamp          |
+| `updatedAt`      | String        | ISO 8601 timestamp          |
 
 **GSIs:**
+
 - `brandId-index` (for filtering by brand)
 - `brandId-name-index` (for uniqueness checks)
 
@@ -204,12 +208,14 @@ Before linking, the service validates:
 ### Atomic Counter Updates
 
 The `locationsTotal` counter uses DynamoDB's atomic counter operations:
+
 - `SET locationsTotal = locationsTotal + :inc` for increments
 - `SET locationsTotal = locationsTotal - :dec` with `ConditionExpression: "locationsTotal > :zero"` for decrements
 
 ### Transactional Writes
 
 The link/unlink operations use `TransactWriteItems` to ensure:
+
 - Both tables are updated atomically
 - If one update fails, the entire transaction is rolled back
 - No partial states can occur
@@ -221,6 +227,7 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 **Decision:** Used separate tables for brands, locations, and offers.
 
 **Rationale:**
+
 - Simpler to understand and maintain
 - Each entity has distinct access patterns
 - Easier to manage GSIs per entity
@@ -231,6 +238,7 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 **Decision:** Store a `hasOffer` boolean on locations instead of querying offerIds.
 
 **Rationale:**
+
 - Enables efficient filtering of locations with/without offers
 - Avoids expensive scans to determine if a location has offers
 - Small storage overhead for significant query performance gain
@@ -240,6 +248,7 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 **Decision:** Maintain a counter rather than computing from `locationIds.size()`.
 
 **Rationale:**
+
 - DynamoDB Sets are returned fully on read (no size operation)
 - Counter updates are atomic and efficient
 - Avoids read-before-write patterns
@@ -249,6 +258,7 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 **Decision:** Use base64-encoded `LastEvaluatedKey` as cursor.
 
 **Rationale:**
+
 - Native to DynamoDB pagination model
 - Stateless - no server-side session needed
 - Opaque to clients, can change encoding if needed
@@ -258,6 +268,7 @@ The link/unlink operations use `TransactWriteItems` to ensure:
 **Decision:** Offers can only be linked to locations of the same brand.
 
 **Rationale:**
+
 - Maintains data integrity
 - Prevents cross-brand offer assignments
 - Clear business rule enforcement
@@ -348,14 +359,14 @@ npm test -- --testPathPattern=offers
 
 ### Test Summary
 
-| Module | Service | Controller | Repository | Total |
-|--------|---------|------------|------------|-------|
-| Brands | 18 | 5 | 14 | 37 |
-| Locations | 18 | 5 | 18 | 41 |
-| Offers | 32 | 7 | 17 | 56 |
-| DynamoDB | - | - | 12 | 12 |
-| Utils | - | - | 9 | 9 |
-| **Total** | | | | **155** |
+| Module    | Service | Controller | Repository | Total   |
+| --------- | ------- | ---------- | ---------- | ------- |
+| Brands    | 18      | 5          | 14         | 37      |
+| Locations | 18      | 5          | 18         | 41      |
+| Offers    | 32      | 7          | 17         | 56      |
+| DynamoDB  | -       | -          | 12         | 12      |
+| Utils     | -       | -          | 9          | 9       |
+| **Total** |         |            |            | **155** |
 
 ## API Usage Examples
 
@@ -436,14 +447,3 @@ src/
     ├── offers.repository.ts
     └── dto/
 ```
-
-## Future Improvements
-
-1. **Batch Operations:** Add endpoints for bulk linking/unlinking locations
-2. **Soft Deletes:** Implement soft deletes for audit trails
-3. **Cascading Deletes:** Handle cleanup when brands are deleted
-4. **Caching:** Add caching layer for frequently accessed data
-5. **Rate Limiting:** Implement rate limiting at API Gateway level
-6. **OpenAPI/Swagger:** Add API documentation with Swagger
-7. **Monitoring:** Add CloudWatch dashboards and alarms
-8. **CI/CD:** Set up GitHub Actions for automated testing and deployment
