@@ -1,0 +1,142 @@
+service: fidel-offers-api
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'eu-west-1'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - !GetAtt BrandsTable.Arn
+            - !Sub "${BrandsTable.Arn}/index/*"
+            - !GetAtt OffersTable.Arn
+            - !Sub "${OffersTable.Arn}/index/*"
+            - !GetAtt LocationsTable.Arn
+            - !Sub "${LocationsTable.Arn}/index/*"
+
+plugins:
+  - serverless-offline
+
+functions:
+  main:
+    handler: dist/lambda.handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+package:
+  patterns:
+    - "!src/**"
+    - "!test/**"
+    - "!scripts/**"
+    - "!node_modules/.cache/**"
+    - "!.git/**"
+    - "!*.md"
+    - "!.env*"
+    - "!docker-compose.yaml"
+    - "!tsconfig*.json"
+    - "!nest-cli.json"
+    - "!.eslintrc.js"
+    - "!.prettierrc"
+
+resources:
+  Resources:
+    BrandsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: brands
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: nameLower
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: nameLower-index
+            KeySchema:
+              - AttributeName: nameLower
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    OffersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: offers
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: brandId
+            AttributeType: S
+          - AttributeName: name
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: brandId-index
+            KeySchema:
+              - AttributeName: brandId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: brandId-name-index
+            KeySchema:
+              - AttributeName: brandId
+                KeyType: HASH
+              - AttributeName: name
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    LocationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: locations
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: brandId
+            AttributeType: S
+          - AttributeName: name
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: brandId-name-index
+            KeySchema:
+              - AttributeName: brandId
+                KeyType: HASH
+              - AttributeName: name
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+  Outputs:
+    ApiEndpoint:
+      Description: API Gateway endpoint URL
+      Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"

@@ -37,11 +37,12 @@ export class DynamoDBService implements OnModuleInit {
     const isLocal =
       this.configService.get<string>("NODE_ENV") === "development";
 
-    const region = this.configService.getOrThrow<string>("AWS_REGION");
-    const endpoint = this.configService.getOrThrow<string>("DYNAMODB_ENDPOINT");
+    const region =
+      this.configService.get<string>("AWS_REGION") || process.env.AWS_REGION;
+    const endpoint = this.configService.get<string>("DYNAMODB_ENDPOINT");
 
     this.dynamoClient = new DynamoDBClient(
-      isLocal
+      isLocal && endpoint
         ? { region, endpoint }
         : { region }
     );
