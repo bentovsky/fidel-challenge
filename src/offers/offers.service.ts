@@ -2,12 +2,11 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
-  Inject,
-  forwardRef,
 } from "@nestjs/common";
 import { Offer } from "../dynamodb/entities";
 import { CreateOfferDto, UpdateOfferDto, FindAllOffersDto } from "./dto";
 import { OffersRepository, PaginatedResult } from "./offers.repository";
+import { DynamoDBService, Tables } from "../dynamodb/dynamodb.service";
 import { BrandsService } from "../brands/brands.service";
 import { LocationsService } from "../locations/locations.service";
 import { generateId, timestamp } from "../common/utils";
@@ -18,8 +17,8 @@ const DEFAULT_PAGE_SIZE = 10;
 export class OffersService {
   constructor(
     private readonly offersRepository: OffersRepository,
+    private readonly dynamoDBService: DynamoDBService,
     private readonly brandsService: BrandsService,
-    @Inject(forwardRef(() => LocationsService))
     private readonly locationsService: LocationsService
   ) {}
 
@@ -108,16 +107,52 @@ export class OffersService {
       );
     }
 
-    // Link offer to location
-    await this.locationsService.addOffer(locationId, offerId);
+    // Check if already linked
+    if (location.offerIds?.has(offerId)) {
+      throw new ConflictException(
+        `Offer ${offerId} is already linked to this location`
+      );
+    }
 
-    // Increment locations counter
-    await this.offersRepository.incrementLocationsTotal(offerId);
+    const now = new Date().toISOString();
+
+    // Use transaction to update both tables atomically
+    await this.dynamoDBService.transactWrite({
+      TransactItems: [
+        {
+          Update: {
+            TableName: Tables.LOCATIONS,
+            Key: { id: locationId },
+            UpdateExpression:
+              "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+            ExpressionAttributeValues: {
+              ":offerId": new Set([offerId]),
+              ":hasOffer": true,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: Tables.OFFERS,
+            Key: { id: offerId },
+            UpdateExpression:
+              "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
+            ExpressionAttributeValues: {
+              ":locationId": new Set([locationId]),
+              ":inc": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    });
 
     return {
       ...offer,
+      locationIds: new Set([...(offer.locationIds || []), locationId]),
       locationsTotal: offer.locationsTotal + 1,
-      updatedAt: timestamp(),
+      updatedAt: now,
     };
   }
 
@@ -133,16 +168,60 @@ export class OffersService {
       );
     }
 
-    // Unlink offer from location (LocationsService validates link exists)
-    await this.locationsService.removeOffer(locationId, offerId);
+    // Check if link exists
+    if (!location.offerIds?.has(offerId)) {
+      throw new NotFoundException(
+        `Offer ${offerId} is not linked to this location`
+      );
+    }
 
-    // Decrement locations counter
-    await this.offersRepository.decrementLocationsTotal(offerId);
+    const now = new Date().toISOString();
+    const remainingOffers = new Set(location.offerIds);
+    remainingOffers.delete(offerId);
+    const hasOffer = remainingOffers.size > 0;
+
+    // Use transaction to update both tables atomically
+    await this.dynamoDBService.transactWrite({
+      TransactItems: [
+        {
+          Update: {
+            TableName: Tables.LOCATIONS,
+            Key: { id: locationId },
+            UpdateExpression:
+              "DELETE offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+            ExpressionAttributeValues: {
+              ":offerId": new Set([offerId]),
+              ":hasOffer": hasOffer,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: Tables.OFFERS,
+            Key: { id: offerId },
+            UpdateExpression:
+              "DELETE locationIds :locationId SET locationsTotal = locationsTotal - :dec, updatedAt = :now",
+            ConditionExpression: "locationsTotal > :zero",
+            ExpressionAttributeValues: {
+              ":locationId": new Set([locationId]),
+              ":dec": 1,
+              ":zero": 0,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    });
+
+    const newLocationIds = new Set(offer.locationIds);
+    newLocationIds.delete(locationId);
 
     return {
       ...offer,
+      locationIds: newLocationIds.size > 0 ? newLocationIds : undefined,
       locationsTotal: Math.max(0, offer.locationsTotal - 1),
-      updatedAt: timestamp(),
+      updatedAt: now,
     };
   }
 }

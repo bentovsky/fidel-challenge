@@ -117,4 +117,32 @@ export class OffersRepository {
       Key: { id },
     });
   }
+
+  async addLocationToSet(id: string, locationId: string): Promise<void> {
+    await this.dynamoDBService.update(Tables.OFFERS, {
+      Key: { id },
+      UpdateExpression:
+        "ADD locationIds :locationId SET locationsTotal = locationsTotal + :inc, updatedAt = :now",
+      ExpressionAttributeValues: {
+        ":locationId": new Set([locationId]),
+        ":inc": 1,
+        ":now": new Date().toISOString(),
+      },
+    });
+  }
+
+  async removeLocationFromSet(id: string, locationId: string): Promise<void> {
+    await this.dynamoDBService.update(Tables.OFFERS, {
+      Key: { id },
+      UpdateExpression:
+        "DELETE locationIds :locationId SET locationsTotal = locationsTotal - :dec, updatedAt = :now",
+      ConditionExpression: "locationsTotal > :zero",
+      ExpressionAttributeValues: {
+        ":locationId": new Set([locationId]),
+        ":dec": 1,
+        ":zero": 0,
+        ":now": new Date().toISOString(),
+      },
+    });
+  }
 }

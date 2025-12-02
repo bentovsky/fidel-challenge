@@ -49,7 +49,6 @@ export class LocationsService {
     const location: Location = {
       id: generateId(),
       ...createLocationDto,
-      offerIds: [],
       hasOffer: false,
       createdAt: now,
       updatedAt: now,
@@ -88,49 +87,6 @@ export class LocationsService {
     const updatedLocation: Location = {
       ...location,
       ...updateLocationDto,
-      updatedAt: timestamp(),
-    };
-
-    return this.locationsRepository.update(updatedLocation);
-  }
-
-  async addOffer(locationId: string, offerId: string): Promise<Location> {
-    const location = await this.findOne(locationId);
-
-    // TODO: Validate offer exists when OffersService is available
-    // await this.offersService.findOne(offerId);
-
-    if (location.offerIds.includes(offerId)) {
-      throw new ConflictException(
-        `Offer ${offerId} is already linked to this location`
-      );
-    }
-
-    const updatedLocation: Location = {
-      ...location,
-      offerIds: [...location.offerIds, offerId],
-      hasOffer: true,
-      updatedAt: timestamp(),
-    };
-
-    return this.locationsRepository.update(updatedLocation);
-  }
-
-  async removeOffer(locationId: string, offerId: string): Promise<Location> {
-    const location = await this.findOne(locationId);
-
-    if (!location.offerIds.includes(offerId)) {
-      throw new NotFoundException(
-        `Offer ${offerId} is not linked to this location`
-      );
-    }
-
-    const offerIds = location.offerIds.filter((id) => id !== offerId);
-
-    const updatedLocation: Location = {
-      ...location,
-      offerIds,
-      hasOffer: offerIds.length > 0,
       updatedAt: timestamp(),
     };
 

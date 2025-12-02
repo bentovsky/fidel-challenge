@@ -3,7 +3,7 @@ export interface Location {
   brandId: string;
   name: string;
   address: string;
-  offerIds: string[];
+  offerIds?: Set<string>;
   hasOffer: boolean;
   createdAt: string;
   updatedAt: string;

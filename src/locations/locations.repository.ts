@@ -93,4 +93,39 @@ export class LocationsRepository {
       Key: { id },
     });
   }
+
+  async addOfferToSet(id: string, offerId: string): Promise<void> {
+    await this.dynamoDBService.update(Tables.LOCATIONS, {
+      Key: { id },
+      UpdateExpression:
+        "ADD offerIds :offerId SET hasOffer = :hasOffer, updatedAt = :now",
+      ExpressionAttributeValues: {
+        ":offerId": new Set([offerId]),
+        ":hasOffer": true,
+        ":now": new Date().toISOString(),
+      },
+    });
+  }
+
+  async removeOfferFromSet(id: string, offerId: string): Promise<void> {
+    await this.dynamoDBService.update(Tables.LOCATIONS, {
+      Key: { id },
+      UpdateExpression: "DELETE offerIds :offerId SET updatedAt = :now",
+      ExpressionAttributeValues: {
+        ":offerId": new Set([offerId]),
+        ":now": new Date().toISOString(),
+      },
+    });
+  }
+
+  async updateHasOffer(id: string, hasOffer: boolean): Promise<void> {
+    await this.dynamoDBService.update(Tables.LOCATIONS, {
+      Key: { id },
+      UpdateExpression: "SET hasOffer = :hasOffer, updatedAt = :now",
+      ExpressionAttributeValues: {
+        ":hasOffer": hasOffer,
+        ":now": new Date().toISOString(),
+      },
+    });
+  }
 }
