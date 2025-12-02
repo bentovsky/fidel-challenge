@@ -41,7 +41,21 @@ const tables: CreateTableCommandInput[] = [
   {
     TableName: "locations",
     KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
-    AttributeDefinitions: [{ AttributeName: "id", AttributeType: ScalarAttributeType.S }],
+    AttributeDefinitions: [
+      { AttributeName: "id", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "brandId", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "name", AttributeType: ScalarAttributeType.S },
+    ],
+    GlobalSecondaryIndexes: [
+      {
+        IndexName: "brandId-name-index",
+        KeySchema: [
+          { AttributeName: "brandId", KeyType: KeyType.HASH },
+          { AttributeName: "name", KeyType: KeyType.RANGE },
+        ],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
+    ],
     BillingMode: BillingMode.PAY_PER_REQUEST,
   },
 ];
