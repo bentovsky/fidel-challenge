@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 import { DynamoDBService, Tables } from "../dynamodb/dynamodb.service";
 import { Offer } from "../dynamodb/entities";
 
@@ -38,7 +39,7 @@ export class OffersRepository {
       });
 
       return {
-        items: (result.Items as Offer[]) || [],
+        items: plainToInstance(Offer, result.Items || []),
         nextCursor: result.LastEvaluatedKey
           ? this.encodeCursor(result.LastEvaluatedKey)
           : undefined,
@@ -51,7 +52,7 @@ export class OffersRepository {
     });
 
     return {
-      items: (result.Items as Offer[]) || [],
+      items: plainToInstance(Offer, result.Items || []),
       nextCursor: result.LastEvaluatedKey
         ? this.encodeCursor(result.LastEvaluatedKey)
         : undefined,
@@ -60,14 +61,14 @@ export class OffersRepository {
 
   async create(offer: Offer): Promise<Offer> {
     await this.dynamoDBService.put(Tables.OFFERS, { Item: offer });
-    return offer;
+    return plainToInstance(Offer, offer);
   }
 
   async findById(id: string): Promise<Offer | null> {
     const result = await this.dynamoDBService.get(Tables.OFFERS, {
       Key: { id },
     });
-    return (result.Item as Offer) || null;
+    return result.Item ? plainToInstance(Offer, result.Item) : null;
   }
 
   async findByBrandIdAndName(
@@ -80,12 +81,12 @@ export class OffersRepository {
       ExpressionAttributeNames: { "#name": "name" },
       ExpressionAttributeValues: { ":brandId": brandId, ":name": name },
     });
-    return (result.Items?.[0] as Offer) || null;
+    return result.Items?.[0] ? plainToInstance(Offer, result.Items[0]) : null;
   }
 
   async update(offer: Offer): Promise<Offer> {
     await this.dynamoDBService.put(Tables.OFFERS, { Item: offer });
-    return offer;
+    return plainToInstance(Offer, offer);
   }
 
   async incrementLocationsTotal(id: string): Promise<void> {
