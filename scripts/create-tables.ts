@@ -64,6 +64,7 @@ const tables: CreateTableCommandInput[] = [
       { AttributeName: "id", AttributeType: ScalarAttributeType.S },
       { AttributeName: "brandId", AttributeType: ScalarAttributeType.S },
       { AttributeName: "name", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "nameLower", AttributeType: ScalarAttributeType.S },
     ],
     GlobalSecondaryIndexes: [
       {
@@ -71,6 +72,14 @@ const tables: CreateTableCommandInput[] = [
         KeySchema: [
           { AttributeName: "brandId", KeyType: KeyType.HASH },
           { AttributeName: "name", KeyType: KeyType.RANGE },
+        ],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
+      {
+        IndexName: "brandId-nameLower-index",
+        KeySchema: [
+          { AttributeName: "brandId", KeyType: KeyType.HASH },
+          { AttributeName: "nameLower", KeyType: KeyType.RANGE },
         ],
         Projection: { ProjectionType: ProjectionType.ALL },
       },
