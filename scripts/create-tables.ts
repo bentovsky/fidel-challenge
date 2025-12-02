@@ -21,12 +21,12 @@ const tables: CreateTableCommandInput[] = [
     KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
     AttributeDefinitions: [
       { AttributeName: "id", AttributeType: ScalarAttributeType.S },
-      { AttributeName: "name", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "nameLower", AttributeType: ScalarAttributeType.S },
     ],
     GlobalSecondaryIndexes: [
       {
-        IndexName: "name-index",
-        KeySchema: [{ AttributeName: "name", KeyType: KeyType.HASH }],
+        IndexName: "nameLower-index",
+        KeySchema: [{ AttributeName: "nameLower", KeyType: KeyType.HASH }],
         Projection: { ProjectionType: ProjectionType.ALL },
       },
     ],
@@ -35,7 +35,26 @@ const tables: CreateTableCommandInput[] = [
   {
     TableName: "offers",
     KeySchema: [{ AttributeName: "id", KeyType: KeyType.HASH }],
-    AttributeDefinitions: [{ AttributeName: "id", AttributeType: ScalarAttributeType.S }],
+    AttributeDefinitions: [
+      { AttributeName: "id", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "brandId", AttributeType: ScalarAttributeType.S },
+      { AttributeName: "name", AttributeType: ScalarAttributeType.S },
+    ],
+    GlobalSecondaryIndexes: [
+      {
+        IndexName: "brandId-index",
+        KeySchema: [{ AttributeName: "brandId", KeyType: KeyType.HASH }],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
+      {
+        IndexName: "brandId-name-index",
+        KeySchema: [
+          { AttributeName: "brandId", KeyType: KeyType.HASH },
+          { AttributeName: "name", KeyType: KeyType.RANGE },
+        ],
+        Projection: { ProjectionType: ProjectionType.ALL },
+      },
+    ],
     BillingMode: BillingMode.PAY_PER_REQUEST,
   },
   {
