@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Fidel Offers API",
-    "description": "A collection demonstrating the Offers API platform - connecting brands, locations, and offers.\n\n## Story Flow\n\n1. **Setup**: Create a brand (Starbucks)\n2. **Locations**: Add two store locations\n3. **Offers**: Create a cashback offer\n4. **Linking**: Link the offer to locations\n5. **Verification**: Check the relationships\n6. **Cleanup**: Unlink and delete\n\n## Running the Collection\n\nRun requests in order - variables are automatically set from responses.",
+    "description": "A collection demonstrating the Offers API platform - connecting brands, locations, and offers.\n\n## Story Flow\n\n1. **Setup**: Create a brand (Starbucks)\n2. **Locations**: Add two store locations\n3. **Offers**: Create a cashback offer\n4. **Linking**: Link the offer to locations\n5. **Verification**: Check the relationships\n6. **Cleanup**: Unlink and delete\n\n## Key Features Demonstrated\n\n- **Case-insensitive uniqueness**: Brand and location names are unique regardless of casing\n- **Atomic transactions**: Linking offers to locations uses DynamoDB transactions\n- **Cursor-based pagination**: Efficient pagination for large datasets\n- **Cross-brand validation**: Offers can only be linked to locations of the same brand\n\n## Running the Collection\n\nRun requests in order - variables are automatically set from responses.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -125,6 +125,11 @@
                   "    pm.response.to.have.status(200);",
                   "    const response = pm.response.json();",
                   "    pm.expect(response.id).to.eql(pm.collectionVariables.get('brandId'));",
+                  "});",
+                  "",
+                  "pm.test('nameLower is excluded from response', function() {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.not.have.property('nameLower');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -138,7 +143,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["brands", "{{brandId}}"]
             },
-            "description": "Retrieve the created brand by ID"
+            "description": "Retrieve the created brand by ID. Note: nameLower is stored internally but excluded from API responses."
           }
         },
         {
@@ -233,6 +238,10 @@
                   "    pm.response.to.have.status(201);",
                   "    pm.expect(response.hasOffer).to.eql(false);",
                   "    pm.expect(response.brandId).to.eql(pm.collectionVariables.get('brandId'));",
+                  "});",
+                  "",
+                  "pm.test('nameLower is excluded from response', function() {",
+                  "    pm.expect(response).to.not.have.property('nameLower');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -256,7 +265,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["locations"]
             },
-            "description": "Create first Starbucks location. Note: hasOffer starts as false"
+            "description": "Create first Starbucks location. Note: hasOffer starts as false, nameLower is stored internally but excluded from response."
           }
         },
         {
@@ -298,14 +307,15 @@
           }
         },
         {
-          "name": "2.3 Try Duplicate Location Name (Should Fail)",
+          "name": "2.3 Try Duplicate Location Name (Should Fail - Case Insensitive)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Duplicate location name rejected for same brand', function() {",
+                  "pm.test('Duplicate location name rejected (case-insensitive)', function() {",
                   "    pm.response.to.have.status(409);",
+                  "    pm.expect(pm.response.json().message).to.include('already exists');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -322,14 +332,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"name\": \"Oxford Street\",\n  \"address\": \"Different address but same name\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"name\": \"OXFORD STREET\",\n  \"address\": \"Different address but same name with different casing\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/locations",
               "host": ["{{baseUrl}}"],
               "path": ["locations"]
             },
-            "description": "Location names must be unique within a brand"
+            "description": "Location names must be unique within a brand (case-insensitive). 'OXFORD STREET' should fail because 'Oxford Street' already exists."
           }
         },
         {
@@ -371,18 +381,19 @@
           }
         },
         {
-          "name": "2.5 List Locations by Brand",
+          "name": "2.5 List Locations (brandId required)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Filter locations by brand', function() {",
+                  "pm.test('List locations for brand', function() {",
                   "    pm.response.to.have.status(200);",
                   "    const response = pm.response.json();",
                   "    pm.expect(response.items.length).to.eql(2);",
                   "    response.items.forEach(loc => {",
                   "        pm.expect(loc.brandId).to.eql(pm.collectionVariables.get('brandId'));",
+                  "        pm.expect(loc).to.not.have.property('nameLower');",
                   "    });",
                   "});"
                 ],
@@ -403,7 +414,33 @@
                 }
               ]
             },
-            "description": "List only Starbucks locations using brandId filter"
+            "description": "List locations for a specific brand. brandId is required - users can only view locations for their own brand."
+          }
+        },
+        {
+          "name": "2.6 List Locations Without brandId (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Request without brandId is rejected', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().message).to.include('brandId');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["locations"]
+            },
+            "description": "Attempting to list locations without brandId should fail with 400 Bad Request"
           }
         }
       ]
@@ -477,6 +514,69 @@
               "path": ["offers", "{{offerId}}"]
             },
             "description": "View offer before linking to any locations"
+          }
+        },
+        {
+          "name": "3.3 List Offers (brandId required)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List offers for brand', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.items).to.be.an('array');",
+                  "    pm.expect(response.items.length).to.be.at.least(1);",
+                  "    response.items.forEach(offer => {",
+                  "        pm.expect(offer.brandId).to.eql(pm.collectionVariables.get('brandId'));",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/offers?brandId={{brandId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["offers"],
+              "query": [
+                {
+                  "key": "brandId",
+                  "value": "{{brandId}}"
+                }
+              ]
+            },
+            "description": "List offers for a specific brand. brandId is required - users can only view offers for their own brand."
+          }
+        },
+        {
+          "name": "3.4 List Offers Without brandId (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Request without brandId is rejected', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().message).to.include('brandId');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/offers",
+              "host": ["{{baseUrl}}"],
+              "path": ["offers"]
+            },
+            "description": "Attempting to list offers without brandId should fail with 400 Bad Request"
           }
         }
       ]
